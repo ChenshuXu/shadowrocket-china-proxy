@@ -1,0 +1,40 @@
+name: Update China routing rules
+
+on:
+  schedule:
+    - cron: '17 8 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - generate.py
+      - test_generate.py
+      - direct-domains.txt
+      - .github/workflows/update.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-china-rules
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Generate from the current upstream revision
+        run: python3 generate.py
+      - name: Verify routing and persistent overrides
+        run: python3 -m unittest -v test_generate.py
+      - name: Publish validated profile
+        run: |
+          git add sr_china_proxy.conf LICENSE.domain-list-community
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "Update mainland China domain rules"
+          git push

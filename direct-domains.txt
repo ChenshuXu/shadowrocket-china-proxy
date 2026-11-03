@@ -1,0 +1,9 @@
+# These suffixes and all their subdomains always use DIRECT, before CN rules.
+# Doubao domains: https://github.com/v2fly/domain-list-community/blob/master/data/doubao
+doubao.com
+doubaoapps.com
+doubaocdn.com
+doubao-dev.com
+# Speech endpoint documented by Volcengine; actual input-method traffic not captured.
+# https://docs.volcengine.com/docs/doubao-voice/bidirectional-streaming-automatic-speech-recognition-websocket?lang=zh
+openspeech.bytedance.com
