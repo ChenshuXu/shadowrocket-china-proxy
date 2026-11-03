@@ -1,5 +1,5 @@
 # These suffixes and all their subdomains always use DIRECT, before CN rules.
-# Doubao domains: https://github.com/v2fly/domain-list-community/blob/master/data/doubao
+# Persistent, manually maintained Doubao exceptions requested by the user.
 doubao.com
 doubaoapps.com
 doubaocdn.com
