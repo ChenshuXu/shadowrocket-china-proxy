@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the custom profile from Johnshall's current sr_backcn.conf."""
+"""Convert Johnshall's sr_cnip.conf to mainland-China-IP proxy routing."""
 
 from datetime import datetime, timezone
 from hashlib import sha256
@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent
 UPDATE_URL = "https://raw.githubusercontent.com/ChenshuXu/shadowrocket-china-proxy/main/sr_china_proxy.conf"
 SOURCE_REPOSITORY = "Johnshall/Shadowrocket-ADBlock-Rules-Forever"
 SOURCE_BRANCH = "release"
-SOURCE_FILE = "sr_backcn.conf"
+SOURCE_FILE = "sr_cnip.conf"
 LOCAL_NETWORKS = (
     "0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "127.0.0.0/8",
     "169.254.0.0/16", "172.16.0.0/12", "192.168.0.0/16", "224.0.0.0/4",
@@ -51,12 +51,20 @@ def upstream_rules(source):
         if fields[policy_index] not in {"DIRECT", "PROXY"}:
             raise ValueError(f"Unexpected upstream routing policy: {line}")
         rules.append(",".join(fields))
-    if not rules or rules[-1] != "FINAL,DIRECT" or sum(rule.startswith("FINAL,") for rule in rules) != 1:
-        raise ValueError("Upstream return-China profile must end with one FINAL,DIRECT")
-    for required in ("DOMAIN-SUFFIX,cn,PROXY", "GEOIP,CN,PROXY"):
-        if required not in rules:
-            raise ValueError(f"Upstream return-China profile is missing {required}")
-    return rules
+    if not rules or rules[-1] != "FINAL,PROXY" or sum(rule.startswith("FINAL,") for rule in rules) != 1:
+        raise ValueError("Upstream sr_cnip.conf must end with one FINAL,PROXY before conversion")
+    if rules.count("GEOIP,CN,DIRECT") != 1:
+        raise ValueError("Upstream sr_cnip.conf must contain one GEOIP,CN,DIRECT before conversion")
+    # China IP matching must precede the original foreign-site overrides.
+    # Otherwise a domain such as bing.com could bypass PROXY even at a CN IP.
+    converted = ["GEOIP,CN,PROXY"]
+    for rule in rules:
+        if rule == "GEOIP,CN,DIRECT" or rule.startswith("FINAL,"):
+            continue
+        fields = rule.split(",")
+        fields[2] = "DIRECT"
+        converted.append(",".join(fields))
+    return converted + ["FINAL,DIRECT"]
 
 
 def render(source, revision, direct):
@@ -67,7 +75,8 @@ def render(source, revision, direct):
         f"# Upstream: https://github.com/{SOURCE_REPOSITORY}/blob/{revision}/{SOURCE_FILE}",
         f"# Generated: {generated}",
         f"# Upstream SHA256: {sha256(source.encode('utf-8')).hexdigest()}",
-        "# Modified: persistent Doubao DIRECT overrides; local LAN bypass; system DNS; own update URL.",
+        "# Modified: CN IP -> PROXY first; other upstream rules -> DIRECT; FINAL -> DIRECT.",
+        "# Persistent Doubao DIRECT exceptions and local LAN bypass take priority; system DNS; own update URL.",
         "# Google URL rewriting and MITM sections are omitted.",
         "# Adapted rules: CC BY-SA 4.0; see LICENSE.upstream.",
         "# PROXY follows the Home-screen server. Select a mainland China public-Internet exit.",
@@ -81,7 +90,7 @@ def render(source, revision, direct):
     lines.extend(["", "# 2. Local network traffic stays DIRECT.", "DOMAIN,localhost,DIRECT"])
     lines.extend(f"DOMAIN-SUFFIX,{domain},DIRECT" for domain in ("local", "lan", "internal"))
     lines.extend(f"IP-CIDR,{network},DIRECT,no-resolve" for network in LOCAL_NETWORKS)
-    lines.extend(["", "# 3. Routing rules copied from the upstream sr_backcn.conf."])
+    lines.extend(["", "# 3. Convert upstream sr_cnip.conf: CN IPs PROXY, all other traffic DIRECT."])
     lines.extend(rules)
     return "\n".join(lines) + "\n"
 

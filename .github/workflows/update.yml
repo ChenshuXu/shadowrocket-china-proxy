@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Generate from Johnshall's current return-China rules
+      - name: Convert Johnshall's current sr_cnip.conf
         run: python3 generate.py
       - name: Verify routing and persistent overrides
         run: python3 -m unittest -v test_generate.py
@@ -36,5 +36,5 @@ jobs:
           fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git commit -m "Sync Johnshall return-China rules"
+          git commit -m "Convert latest Johnshall sr_cnip.conf"
           git push
